@@ -10,9 +10,9 @@ app.listen(PORT, () => console.log(`Keep-Alive server active on port ${PORT}`));
 
 // --- 2. إعدادات الاتصال ---
 const botOptions = {
-    host: process.env.MC_HOST || 'YOUR_SERVER_IP',
-    port: parseInt(process.env.MC_PORT) || 25565,
-    username: process.env.MC_USERNAME || 'SmartBot',
+    host: process.env.MC_HOST || Progamer-Smp.aternos.me',
+    port: parseInt(process.env.MC_PORT) || 29801,
+    username: process.env.MC_USERNAME || 'isad',
     version: false
 };
 
