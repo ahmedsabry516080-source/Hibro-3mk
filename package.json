@@ -8,6 +8,7 @@
   "dependencies": {
     "express": "latest",
     "mineflayer": "latest",
+    "mineflayer-pathfinder": "latest",
     "vec3": "latest"
   }
 }
