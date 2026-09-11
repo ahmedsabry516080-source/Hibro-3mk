@@ -1,91 +1,102 @@
 const mineflayer = require('mineflayer');
-const { pathfinder, movements, goals } = require('mineflayer-pathfinder');
 const express = require('express');
 
-// --- 1. سيرفر HTTP للبقاء يعمل 24/7 على Railway ---
+// --- 1. سيرفر HTTP لضمان استمرار تشغيل المشروع 24/7 على Railway ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Smart Minecraft Bot is Online!'));
-app.listen(PORT, () => console.log(`Keep-Alive server active on port ${PORT}`));
 
-// --- 2. إعدادات الاتصال ---
+app.get('/', (req, res) => {
+    res.send('Minecraft Bot is Active 24/7!');
+});
+
+app.listen(PORT, () => {
+    console.log(`Keep-Alive HTTP server running on port ${PORT}`);
+});
+
+// --- 2. إعدادات البوت وسيرفر ماين كرافت الخاص بك ---
 const botOptions = {
-    host: process.env.MC_HOST || Progamer-Smp.aternos.me',
-    port: parseInt(process.env.MC_PORT) || 29801,
-    username: process.env.MC_USERNAME || 'isad',
+    host: 'Progamer-Smp.aternos.me',
+    port: 29801,
+    username: 'ProBot_247',
     version: false
 };
 
 let bot;
+let actionInterval;
 
-function createSmartBot() {
-    console.log('جاري الاتصال بالسيرفر...');
+function createBot() {
+    console.log('جاري محاولة الاتصال بالسيرفر...');
     bot = mineflayer.createBot(botOptions);
 
-    // تحميل إضافة التحرك الذكي (Pathfinder)
-    bot.loadPlugin(pathfinder);
-
+    // عند دخول السيرفر بنجاح
     bot.on('spawn', () => {
-        console.log('دخل البوت السيرفر بنجاح وهو جاهز للعمل!');
-        
-        // إعداد قوانين الحركة للبوت (يقدر ينزل درج، يقفز، يكسر البلوكات لو محشور)
-        const defaultMove = new movements(bot);
-        defaultMove.canDig = false; // خليه true لو عايزه يكسر البلوكات وهو ماشي
-        bot.pathfinder.setMovements(defaultMove);
+        console.log('تم دخول البوت السيرفر بنجاح وهو الآن نشيط!');
+
+        // حركة ومحاكاة نشاط عشوائي كل 7 ثوانٍ لمنع الـ AFK
+        if (actionInterval) clearInterval(actionInterval);
+        actionInterval = setInterval(() => {
+            performRandomAction();
+        }, 7000);
     });
 
-    // --- 3. الذكاء التفاعلي (الشات والأوامر) ---
-    bot.on('chat', (username, message) => {
-        if (username === bot.username) return; // ignore self
+    // --- 3. الأفعال العشوائية (قفز، تحرك، قف، كسر) ---
+    async function performRandomAction() {
+        if (!bot || !bot.entity) return;
 
-        const msg = message.toLowerCase();
+        const actions = ['jump', 'move', 'look', 'breakBlock'];
+        const randomAction = actions[Math.floor(Math.random() * actions.length)];
 
-        // أمر التتبع: يجيلك لحد عندك بطريقة ذكية
-        if (msg === 'تعال' || msg === 'come') {
-            const player = bot.players[username];
-            if (!player || !player.entity) {
-                bot.chat(`أنا مش شايفك يا ${username}! قرب مني.`);
-                return;
+        try {
+            switch (randomAction) {
+                case 'jump':
+                    bot.setControlState('jump', true);
+                    setTimeout(() => bot.setControlState('jump', false), 500);
+                    break;
+
+                case 'move':
+                    const dir = Math.random() > 0.5 ? 'forward' : 'back';
+                    bot.setControlState(dir, true);
+                    setTimeout(() => bot.setControlState(dir, false), 1200);
+                    break;
+
+                case 'look':
+                    const yaw = Math.random() * Math.PI * 2;
+                    const pitch = (Math.random() - 0.5) * Math.PI;
+                    await bot.look(yaw, pitch, true);
+                    break;
+
+                case 'breakBlock':
+                    const targetBlock = bot.blockAt(bot.entity.position.offset(0, 0, 1));
+                    if (targetBlock && targetBlock.name !== 'air' && targetBlock.name !== 'bedrock') {
+                        if (bot.canDigBlock(targetBlock)) {
+                            await bot.dig(targetBlock);
+                        }
+                    } else {
+                        bot.setControlState('jump', true);
+                        setTimeout(() => bot.setControlState('jump', false), 400);
+                    }
+                    break;
             }
-            bot.chat(`أنا جاي لك يا ${username}...`);
-            const target = player.entity.position;
-            bot.pathfinder.setGoal(new goals.GoalFollow(player.entity, 1));
+        } catch (err) {
+            // تجاهل أخطاء الحركة البسيطة
         }
+    }
 
-        // أمر التوقف
-        if (msg === 'اثبت' || msg === 'stop') {
-            bot.chat('حاضر، وقفت مكانى.');
-            bot.pathfinder.setGoal(null);
-        }
-
-        // إجابة ذكية على التحية
-        if (msg.includes('هلا') || msg.includes('سلام')) {
-            bot.chat(`أهلاً بك يا ${username}! اكتب "تعال" عشان أجيلك، أو "اثبت" عشان أقف.`);
-        }
-    });
-
-    // --- 4. الدفاع الذكي عن النفس (Self Defense) ---
-    bot.on('entityHurt', (entity) => {
-        // لو البوت تعرض للهجوم
-        if (entity === bot.entity) {
-            bot.chat('أنا بتعرض للهجوم!');
-        }
-    });
-
-    // --- 5. التعامل مع الانقطاع والهبوط الهدوء (Auto Reconnect) ---
+    // --- 4. إعادة الاتصال الهادئ عند الخروج دون عمل Restart للمشروع ---
     bot.on('end', (reason) => {
-        console.warn(`تم الفصل (السبب: ${reason}). جاري إعادة الاتصال بعد 10 ثوانٍ...`);
-        setTimeout(createSmartBot, 10000);
+        console.warn(`تم فصل الاتصال (${reason}). جاري إعادة المحاولة بعد 10 ثوانٍ...`);
+        if (actionInterval) clearInterval(actionInterval);
+        setTimeout(createBot, 10000);
     });
 
-    bot.on('error', (err) => console.error('خطأ في الاتصال:', err.message));
+    bot.on('error', (err) => {
+        console.error('خطأ في الاتصال:', err.message);
+    });
 }
 
-// التغلب على أخطاء الانهيار غير المتوقعة
+// منع انهيار البرنامج عند حدوث أي خطأ غير متوقع
 process.on('unhandledRejection', err => console.error('Unhandled Error:', err));
 process.on('uncaughtException', err => console.error('Uncaught Error:', err));
 
 // تشغيل البوت
-createSmartBot();
-
-
+createBot();
