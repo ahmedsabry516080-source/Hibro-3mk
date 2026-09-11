@@ -6,8 +6,8 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "*",
-    "mineflayer": "*",
-    "vec3": "*"
+    "express": "latest",
+    "mineflayer": "latest",
+    "vec3": "latest"
   }
 }
