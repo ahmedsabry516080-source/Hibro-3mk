@@ -1,19 +1,19 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. سيرفر HTTP لضمان استمرار تشغيل المشروع 24/7 على Railway ---
+// --- 1. سيرفر HTTP لضمان استمرار التشغيل 24/7 على Railway ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('Minecraft Bot is Active 24/7!');
+    res.send('Minecraft Bot with Auto-Login is Active 24/7!');
 });
 
 app.listen(PORT, () => {
     console.log(`Keep-Alive HTTP server running on port ${PORT}`);
 });
 
-// --- 2. إعدادات البوت وسيرفر ماين كرافت الخاص بك ---
+// --- 2. إعدادات البوت والباسورد ---
 const botOptions = {
     host: 'Progamer-Smp.aternos.me',
     port: 29801,
@@ -21,25 +21,34 @@ const botOptions = {
     version: false
 };
 
+// الباسورد الخاص بالبوت في السيرفر (غيره لو تحب)
+const PASSWORD = 'MyBotPassword123';
+
 let bot;
 let actionInterval;
 
 function createBot() {
-    console.log('جاري محاولة الاتصال بالسيرفر...');
+    console.log('جاري الاتصال بالسيرفر...');
     bot = mineflayer.createBot(botOptions);
 
     // عند دخول السيرفر بنجاح
     bot.on('spawn', () => {
-        console.log('تم دخول البوت السيرفر بنجاح وهو الآن نشيط!');
+        console.log('دخل البوت السيرفر، جاري إرسال أوامر التسجيل...');
 
-        // حركة ومحاكاة نشاط عشوائي كل 7 ثوانٍ لمنع الـ AFK
+        // كتابة أواامر التسجيل والدخول تلقائياً فور الدخول
+        setTimeout(() => {
+            bot.chat(`/register ${PASSWORD} ${PASSWORD}`);
+            bot.chat(`/login ${PASSWORD}`);
+        }, 1500);
+
+        // بدء الأنشطة العشوائية لمنع الـ AFK
         if (actionInterval) clearInterval(actionInterval);
         actionInterval = setInterval(() => {
             performRandomAction();
         }, 7000);
     });
 
-    // --- 3. الأفعال العشوائية (قفز، تحرك، قف، كسر) ---
+    // --- 3. الأفعال العشوائية (قفز، تحرك، كسر) ---
     async function performRandomAction() {
         if (!bot || !bot.entity) return;
 
@@ -78,13 +87,13 @@ function createBot() {
                     break;
             }
         } catch (err) {
-            // تجاهل أخطاء الحركة البسيطة
+            // تجاهل الأخطاء البسيطة
         }
     }
 
-    // --- 4. إعادة الاتصال الهادئ عند الخروج دون عمل Restart للمشروع ---
+    // --- 4. إعادة الاتصال الهادئ عند الخروج ---
     bot.on('end', (reason) => {
-        console.warn(`تم فصل الاتصال (${reason}). جاري إعادة المحاولة بعد 10 ثوانٍ...`);
+        console.warn(`تم فصل الاتصال (${reason}). إعادة المحاولة بعد 10 ثوانٍ...`);
         if (actionInterval) clearInterval(actionInterval);
         setTimeout(createBot, 10000);
     });
@@ -94,7 +103,7 @@ function createBot() {
     });
 }
 
-// منع انهيار البرنامج عند حدوث أي خطأ غير متوقع
+// منع انهيار التطبيق
 process.on('unhandledRejection', err => console.error('Unhandled Error:', err));
 process.on('uncaughtException', err => console.error('Uncaught Error:', err));
 
