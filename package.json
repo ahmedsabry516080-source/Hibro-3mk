@@ -1,13 +1,13 @@
 {
-  "name": "smart-mc-bot",
+  "name": "mc-bot",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "mineflayer": "^4.20.1",
-    "vec3": "^0.15.0"
+    "express": "*",
+    "mineflayer": "*",
+    "vec3": "*"
   }
 }
