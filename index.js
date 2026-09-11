@@ -1,104 +1,103 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. سيرفر HTTP لضمان استمرار التشغيل على Railway ---
+// --- 1. سيرفر HTTP واحد للبوتين معاً ---
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('Advanced Anti-AFK Bot is Active!');
+    res.send('Both Minecraft Bots are Active 24/7!');
 });
 
 app.listen(PORT, () => console.log(`Keep-Alive running on port ${PORT}`));
 
-// --- 2. إعدادات السيرفر ---
-const botOptions = {
-    host: 'Progamer-Smp.aternos.me',
-    port: 29801,
-    username: 'ProBot_247',
-    version: false
-};
+// --- 2. بيانات البوتين ---
+const botsData = [
+    { username: 'ProBot_247_1', password: 'MyBotPassword123' },
+    { username: 'ProBot_247_2', password: 'MyBotPassword123' }
+];
 
-const PASSWORD = 'MyBotPassword123';
-let bot;
-let actionTimeout;
+const SERVER_HOST = 'Progamer-Smp.aternos.me';
+const SERVER_PORT = 29801;
 
-function createBot() {
-    console.log('جاري الاتصال بالسيرفر...');
-    bot = mineflayer.createBot(botOptions);
+// --- 3. دالة إنشاء وتشغيل البوت ---
+function startBot(config) {
+    console.log(`جاري تشغيل البوت: ${config.username}...`);
 
-    bot.on('spawn', () => {
-        console.log('دخل البوت السيرفر بنجاح!');
-
-        // تسجيل الدخول
-        setTimeout(() => {
-            bot.chat(`/register ${PASSWORD} ${PASSWORD}`);
-            bot.chat(`/login ${PASSWORD}`);
-        }, 2000);
-
-        // بدء نظام الحركة العشوائي المتغير
-        scheduleNextAction();
+    const bot = mineflayer.createBot({
+        host: SERVER_HOST,
+        port: SERVER_PORT,
+        username: config.username,
+        version: false
     });
 
-    // --- 3. نظام حركة عشوائي غير منتظم (محاكاة الإنسان) ---
-    function scheduleNextAction() {
-        // وقت عشوائي بين كل حركة والتانية (بين 5 إلى 20 ثانية)
+    let actionTimeout;
+
+    bot.on('spawn', () => {
+        console.log(`[${config.username}] دخل السيرفر بنجاح!`);
+
+        // تسجيل الدخول للبوت
+        setTimeout(() => {
+            bot.chat(`/register ${config.password} ${config.password}`);
+            bot.chat(`/login ${config.password}`);
+        }, 2000);
+
+        // بدء الحركة العشوائية
+        scheduleNextAction(bot, config.username);
+    });
+
+    // حركة عشوائية لكل بوت بشكل منفصل
+    function scheduleNextAction(botInstance, name) {
         const randomDelay = Math.floor(Math.random() * (20000 - 5000)) + 5000;
 
         actionTimeout = setTimeout(async () => {
-            if (bot && bot.entity) {
-                await performHumanAction();
+            if (botInstance && botInstance.entity) {
+                await performAction(botInstance);
             }
-            scheduleNextAction(); // جدولة الحركة التالية
+            scheduleNextAction(botInstance, name);
         }, randomDelay);
     }
 
-    async function performHumanAction() {
+    async function performAction(botInstance) {
         const actions = ['jump', 'sneak', 'lookAround', 'walk', 'swingArm'];
         const chosenAction = actions[Math.floor(Math.random() * actions.length)];
 
         try {
             switch (chosenAction) {
                 case 'jump':
-                    bot.setControlState('jump', true);
-                    setTimeout(() => bot.setControlState('jump', false), 400);
+                    botInstance.setControlState('jump', true);
+                    setTimeout(() => botInstance.setControlState('jump', false), 400);
                     break;
-
                 case 'sneak':
-                    bot.setControlState('sneak', true);
-                    setTimeout(() => bot.setControlState('sneak', false), 1000);
+                    botInstance.setControlState('sneak', true);
+                    setTimeout(() => botInstance.setControlState('sneak', false), 1000);
                     break;
-
                 case 'lookAround':
                     const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
                     const pitch = (Math.random() * 90 - 45) * (Math.PI / 180);
-                    await bot.look(yaw, pitch, true);
+                    await botInstance.look(yaw, pitch, true);
                     break;
-
                 case 'walk':
                     const dir = Math.random() > 0.5 ? 'forward' : 'back';
-                    bot.setControlState(dir, true);
-                    setTimeout(() => bot.setControlState(dir, false), Math.floor(Math.random() * 1500) + 500);
+                    botInstance.setControlState(dir, true);
+                    setTimeout(() => botInstance.setControlState(dir, false), Math.floor(Math.random() * 1500) + 500);
                     break;
-
                 case 'swingArm':
-                    bot.swingArm('right');
+                    botInstance.swingArm('right');
                     break;
             }
-        } catch (e) {
-            // تجاهل الأخطاء العابرة
-        }
+        } catch (e) {}
     }
 
-    // --- 4. معالجة الخروج وإعادة الدخول التلقائي ---
+    // إعادة اتصال البوت بشكل فردي لو خرج
     bot.on('end', (reason) => {
-        console.warn(`تم فصل الاتصال: ${reason}. إعادة الاتصال خلال 15 ثانية...`);
+        console.warn(`[${config.username}] فصل الاتصال: ${reason}. إعادة المحاولة بعد 15 ثانية...`);
         if (actionTimeout) clearTimeout(actionTimeout);
-        setTimeout(createBot, 15000);
+        setTimeout(() => startBot(config), 15000);
     });
 
     bot.on('error', (err) => {
-        console.error('خطأ في الاتصال:', err.message);
+        console.error(`[${config.username}] خطأ:`, err.message);
     });
 }
 
@@ -106,4 +105,122 @@ function createBot() {
 process.on('unhandledRejection', err => console.error('Unhandled Error:', err));
 process.on('uncaughtException', err => console.error('Uncaught Error:', err));
 
-createBot();
+// تشغيل البوتين بفارق ثوانٍ لتفادي الطرد عند الدخول معاً
+botsData.forEach((config, index) => {
+    setTimeout(() => {
+        startBot(config);
+    }, index * 5000); // يدخل البوت الثاني بعد الأول بـ 5 ثوانٍ
+});
+const mineflayer = require('mineflayer');
+const express = require('express');
+
+// --- 1. سيرفر HTTP واحد للبوتين معاً ---
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send('Both Minecraft Bots are Active 24/7!');
+});
+
+app.listen(PORT, () => console.log(`Keep-Alive running on port ${PORT}`));
+
+// --- 2. بيانات البوتين ---
+const botsData = [
+    { username: 'ProBot_247_1', password: 'MyBotPassword123' },
+    { username: 'ProBot_247_2', password: 'MyBotPassword123' }
+];
+
+const SERVER_HOST = 'Progamer-Smp.aternos.me';
+const SERVER_PORT = 29801;
+
+// --- 3. دالة إنشاء وتشغيل البوت ---
+function startBot(config) {
+    console.log(`جاري تشغيل البوت: ${config.username}...`);
+
+    const bot = mineflayer.createBot({
+        host: SERVER_HOST,
+        port: SERVER_PORT,
+        username: config.username,
+        version: false
+    });
+
+    let actionTimeout;
+
+    bot.on('spawn', () => {
+        console.log(`[${config.username}] دخل السيرفر بنجاح!`);
+
+        // تسجيل الدخول للبوت
+        setTimeout(() => {
+            bot.chat(`/register ${config.password} ${config.password}`);
+            bot.chat(`/login ${config.password}`);
+        }, 2000);
+
+        // بدء الحركة العشوائية
+        scheduleNextAction(bot, config.username);
+    });
+
+    // حركة عشوائية لكل بوت بشكل منفصل
+    function scheduleNextAction(botInstance, name) {
+        const randomDelay = Math.floor(Math.random() * (20000 - 5000)) + 5000;
+
+        actionTimeout = setTimeout(async () => {
+            if (botInstance && botInstance.entity) {
+                await performAction(botInstance);
+            }
+            scheduleNextAction(botInstance, name);
+        }, randomDelay);
+    }
+
+    async function performAction(botInstance) {
+        const actions = ['jump', 'sneak', 'lookAround', 'walk', 'swingArm'];
+        const chosenAction = actions[Math.floor(Math.random() * actions.length)];
+
+        try {
+            switch (chosenAction) {
+                case 'jump':
+                    botInstance.setControlState('jump', true);
+                    setTimeout(() => botInstance.setControlState('jump', false), 400);
+                    break;
+                case 'sneak':
+                    botInstance.setControlState('sneak', true);
+                    setTimeout(() => botInstance.setControlState('sneak', false), 1000);
+                    break;
+                case 'lookAround':
+                    const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
+                    const pitch = (Math.random() * 90 - 45) * (Math.PI / 180);
+                    await botInstance.look(yaw, pitch, true);
+                    break;
+                case 'walk':
+                    const dir = Math.random() > 0.5 ? 'forward' : 'back';
+                    botInstance.setControlState(dir, true);
+                    setTimeout(() => botInstance.setControlState(dir, false), Math.floor(Math.random() * 1500) + 500);
+                    break;
+                case 'swingArm':
+                    botInstance.swingArm('right');
+                    break;
+            }
+        } catch (e) {}
+    }
+
+    // إعادة اتصال البوت بشكل فردي لو خرج
+    bot.on('end', (reason) => {
+        console.warn(`[${config.username}] فصل الاتصال: ${reason}. إعادة المحاولة بعد 15 ثانية...`);
+        if (actionTimeout) clearTimeout(actionTimeout);
+        setTimeout(() => startBot(config), 15000);
+    });
+
+    bot.on('error', (err) => {
+        console.error(`[${config.username}] خطأ:`, err.message);
+    });
+}
+
+// حماية من انهيار السيرفر
+process.on('unhandledRejection', err => console.error('Unhandled Error:', err));
+process.on('uncaughtException', err => console.error('Uncaught Error:', err));
+
+// تشغيل البوتين بفارق ثوانٍ لتفادي الطرد عند الدخول معاً
+botsData.forEach((config, index) => {
+    setTimeout(() => {
+        startBot(config);
+    }, index * 5000); // يدخل البوت الثاني بعد الأول بـ 5 ثوانٍ
+});
